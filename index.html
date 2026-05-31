@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TEG Online - Prototipo</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Prototipo HTML/CSS/JS</p>
+          <h1>TEG Online</h1>
+        </div>
+        <div class="room-pill" id="roomPill">Sin partida</div>
+      </section>
+
+      <section class="panel" id="homeView">
+        <div class="home-grid">
+          <div class="intro">
+            <h2>Crear o unirse a una partida</h2>
+            <p>
+              Hasta 6 jugadores, cada uno elige color, se reparten 72 paises y arranca
+              la fase inicial de fichas: una base en cada pais, luego 8 refuerzos por jugador
+              y despues 4 mas por jugador.
+            </p>
+          </div>
+          <form class="join-card" id="createForm">
+            <h3>Crear partida</h3>
+            <label>
+              Tu nombre
+              <input id="hostName" maxlength="18" autocomplete="name" placeholder="Ej: Mati">
+            </label>
+            <button type="submit">Crear partida</button>
+          </form>
+          <form class="join-card" id="joinForm">
+            <h3>Unirse</h3>
+            <label>
+              Codigo
+              <input id="joinCode" maxlength="6" placeholder="ABC123">
+            </label>
+            <label>
+              Tu nombre
+              <input id="joinName" maxlength="18" autocomplete="name" placeholder="Ej: Lu">
+            </label>
+            <button type="submit">Unirme</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="lobbyView">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Sala de espera</p>
+            <h2 id="lobbyTitle">Partida</h2>
+          </div>
+          <button class="secondary" id="leaveLobbyBtn">Salir</button>
+        </div>
+
+        <div class="lobby-grid">
+          <div>
+            <h3>Jugadores</h3>
+            <div class="player-list" id="playerList"></div>
+          </div>
+          <div>
+            <h3>Elegir color</h3>
+            <div class="color-grid" id="colorGrid"></div>
+            <p class="hint" id="lobbyHint"></p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="startGameBtn">Repartir paises y empezar</button>
+        </div>
+      </section>
+
+      <section class="game-layout hidden" id="gameView">
+        <aside class="panel sidebar">
+          <div class="section-head compact">
+            <div>
+              <p class="eyebrow">Partida</p>
+              <h2 id="gameTitle"></h2>
+            </div>
+            <button class="secondary icon-btn" id="copyCodeBtn" title="Copiar codigo">#</button>
+          </div>
+
+          <div class="turn-card" id="turnCard"></div>
+          <div class="player-list dense" id="gamePlayers"></div>
+
+          <div class="legend">
+            <h3>Continentes</h3>
+            <div id="continentLegend"></div>
+          </div>
+        </aside>
+
+        <section class="panel board-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Mapa inicial</p>
+              <h2>72 paises</h2>
+            </div>
+            <div class="board-actions">
+              <button class="secondary" id="finishTurnBtn">Terminar colocacion</button>
+              <button class="secondary" id="resetBtn">Reiniciar partida</button>
+            </div>
+          </div>
+          <div class="board" id="board"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="countryTemplate">
+      <button class="country" type="button">
+        <span class="country-name"></span>
+        <span class="country-meta">
+          <span class="owner-dot"></span>
+          <span class="army-count"></span>
+        </span>
+      </button>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
