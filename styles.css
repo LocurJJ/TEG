@@ -10,7 +10,6 @@
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top left, rgba(54, 194, 160, 0.2), transparent 28rem), linear-gradient(135deg, #101317 0%, #171a20 45%, #11151a 100%); color: var(--text); }
 button, input { font: inherit; }
@@ -62,6 +61,10 @@ input { background: #11161c; border: 1px solid var(--line); border-radius: 8px; 
 .attack-panel strong, .attack-panel span { color: var(--text); }
 .board { margin-top: 18px; }
 .world-map { aspect-ratio: 13 / 10; background: radial-gradient(ellipse at 18% 49%, rgba(76, 201, 240, 0.2), transparent 17%), radial-gradient(ellipse at 47% 82%, rgba(54, 194, 160, 0.2), transparent 13%), radial-gradient(ellipse at 62% 41%, rgba(232, 121, 249, 0.2), transparent 12%), radial-gradient(ellipse at 62% 77%, rgba(249, 115, 22, 0.2), transparent 13%), radial-gradient(ellipse at 91% 54%, rgba(244, 63, 94, 0.2), transparent 18%), radial-gradient(ellipse at 87% 87%, rgba(132, 204, 22, 0.18), transparent 12%), linear-gradient(180deg, rgba(76, 201, 240, 0.18), rgba(15, 22, 29, 0.88)); border: 1px solid var(--line); border-radius: 8px; min-height: clamp(520px, 62vw, 760px); min-width: 0; width: 100%; overflow: hidden; position: relative; }
+.world-map.with-board-image { background: linear-gradient(rgba(10, 15, 19, 0.08), rgba(10, 15, 19, 0.1)), url("assets/mapa-teg.jpg") center / contain no-repeat, #11161c; }
+.world-map.with-board-image::before, .world-map.with-board-image .map-land { display: none; }
+.world-map.with-board-image .route { stroke: rgba(17, 17, 17, 0.25); }
+.world-map.with-board-image .route.active { stroke: rgba(7, 95, 75, 0.9); }
 .world-map::before { background: linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(0deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 80px 80px; content: ""; inset: 0; pointer-events: none; position: absolute; }
 .map-land, .map-routes { height: 100%; inset: 0; position: absolute; width: 100%; }
 .map-land { opacity: 0.28; z-index: 1; }
