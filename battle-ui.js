@@ -21,7 +21,7 @@
   function subscribe(code) {
     if (unsubscribe) unsubscribe();
     unsubscribe = backend.subscribeRoom(code, (nextRoom) => {
-      room = nextRoom;
+      room = normalizeRoomBattle(nextRoom);
       renderBattle();
     });
   }
@@ -37,33 +37,22 @@
     event.stopImmediatePropagation();
 
     const code = getRoomCode();
-    if (!code) {
-      toast("No encontre el codigo de partida.");
-      return;
-    }
+    if (!code) return toast("No encontre el codigo de partida.");
     const fromId = slug(selected.querySelector(".country-name")?.textContent || "");
     const toId = attackButton.dataset.target || slug(attackButton.querySelector(".country-name")?.textContent || "");
     const latest = await backend.loadRoom(code);
-    if (!latest) {
-      toast("No pude leer la partida online.");
-      return;
-    }
+    if (!latest) return toast("No pude leer la partida online.");
     if (latest.battle) {
-      room = latest;
+      room = normalizeRoomBattle(latest);
       renderBattle();
       return;
     }
+
     const from = latest.countries?.[fromId];
     const to = latest.countries?.[toId];
     const playerId = getLocalPlayerId();
-    if (!from || !to) {
-      toast("No pude identificar los paises del ataque.");
-      return;
-    }
-    if (from.ownerId !== playerId || to.ownerId === playerId || from.armies <= 1) {
-      toast("Ese ataque no se puede hacer ahora.");
-      return;
-    }
+    if (!from || !to) return toast("No pude identificar los paises del ataque.");
+    if (from.ownerId !== playerId || to.ownerId === playerId || from.armies <= 1) return toast("Ese ataque no se puede hacer ahora.");
 
     latest.battle = {
       fromId,
@@ -72,7 +61,9 @@
       defenderId: to.ownerId,
       attackerDice: rollDice(Math.min(3, from.armies - 1)),
       defenderDice: rollDice(Math.min(3, to.armies)),
-      revealed: 0,
+      attackerRevealed: 0,
+      defenderRevealed: 0,
+      stage: "attacker",
       createdAt: Date.now()
     };
     await backend.saveRoom(latest);
@@ -81,19 +72,30 @@
   }
 
   async function revealNext() {
-    if (!room?.battle || rolling || room.battle.attackerId !== getLocalPlayerId()) return;
-    const total = room.battle.attackerDice.length + room.battle.defenderDice.length;
-    if ((room.battle.revealed || 0) >= total) return;
+    const battle = room?.battle;
+    if (!battle || rolling) return;
+    const playerId = getLocalPlayerId();
+    const isAttackerTurn = battle.stage === "attacker" && battle.attackerId === playerId;
+    const isDefenderTurn = battle.stage === "defender" && battle.defenderId === playerId;
+    if (!isAttackerTurn && !isDefenderTurn) return;
+
     rolling = true;
     renderBattle(true);
     window.setTimeout(async () => {
-      const latest = await backend.loadRoom(room.code);
+      const latest = normalizeRoomBattle(await backend.loadRoom(room.code));
       if (!latest?.battle) {
         rolling = false;
         renderBattle();
         return;
       }
-      latest.battle.revealed = Math.min(total, (latest.battle.revealed || 0) + 1);
+      const nextBattle = latest.battle;
+      if (nextBattle.stage === "attacker") {
+        nextBattle.attackerRevealed = Math.min(nextBattle.attackerDice.length, (nextBattle.attackerRevealed || 0) + 1);
+        if (nextBattle.attackerRevealed >= nextBattle.attackerDice.length) nextBattle.stage = "defender";
+      } else if (nextBattle.stage === "defender") {
+        nextBattle.defenderRevealed = Math.min(nextBattle.defenderDice.length, (nextBattle.defenderRevealed || 0) + 1);
+        if (nextBattle.defenderRevealed >= nextBattle.defenderDice.length) nextBattle.stage = "done";
+      }
       await backend.saveRoom(latest);
       room = latest;
       rolling = false;
@@ -102,8 +104,8 @@
   }
 
   async function applyResult() {
-    if (!room?.battle || rolling || room.battle.attackerId !== getLocalPlayerId()) return;
-    const latest = await backend.loadRoom(room.code);
+    if (!room?.battle || rolling || room.battle.stage !== "done" || room.battle.attackerId !== getLocalPlayerId()) return;
+    const latest = normalizeRoomBattle(await backend.loadRoom(room.code));
     if (!latest?.battle) return;
     resolveBattle(latest);
     await backend.saveRoom(latest);
@@ -146,21 +148,22 @@
       return;
     }
     const battle = room.battle;
-    const total = battle.attackerDice.length + battle.defenderDice.length;
-    const revealed = battle.revealed || 0;
-    const isAttacker = battle.attackerId === getLocalPlayerId();
-    const canReveal = isAttacker && revealed < total && !isRolling;
-    const canApply = isAttacker && revealed >= total && !isRolling;
+    const playerId = getLocalPlayerId();
+    const isAttacker = battle.attackerId === playerId;
+    const isDefender = battle.defenderId === playerId;
+    const canReveal = !isRolling && ((battle.stage === "attacker" && isAttacker && battle.attackerRevealed < battle.attackerDice.length) || (battle.stage === "defender" && isDefender && battle.defenderRevealed < battle.defenderDice.length));
+    const canApply = !isRolling && battle.stage === "done" && isAttacker;
+    const note = battle.stage === "attacker" ? (isAttacker ? "Tira tus numeros de ataque." : "Agus/atacante esta tirando sus numeros.") : battle.stage === "defender" ? (isDefender ? "Ahora tira tus numeros de defensa." : "El defensor esta tirando sus numeros.") : (isAttacker ? "Resultado listo para aplicar." : "Resultado listo. Esperando al atacante.");
     const modal = existing || document.createElement("div");
     modal.className = "battle-modal";
     modal.innerHTML = `
       <div class="battle-card">
         <p class="eyebrow">Batalla</p>
         <h2>${countryName(battle.fromId)} vs ${countryName(battle.toId)}</h2>
-        <p class="battle-note">${isAttacker ? "Revela los numeros de a uno." : "El atacante esta revelando los numeros."}</p>
+        <p class="battle-note">${note}</p>
         <div class="slot-columns">
-          ${diceColumn("Atacante", battle.attackerDice, 0, revealed, isRolling)}
-          ${diceColumn("Defensor", battle.defenderDice, battle.attackerDice.length, revealed, isRolling)}
+          ${diceColumn("Atacante", battle.attackerDice, battle.attackerRevealed, battle.stage === "attacker" && isRolling)}
+          ${diceColumn("Defensor", battle.defenderDice, battle.defenderRevealed, battle.stage === "defender" && isRolling)}
         </div>
         <button class="battle-action" type="button" ${canReveal || canApply ? "" : "disabled"}>${isRolling ? "Girando..." : canApply ? "Aplicar resultado" : "Revelar numero"}</button>
       </div>
@@ -170,15 +173,23 @@
     if (!existing) document.body.appendChild(modal);
   }
 
-  function diceColumn(title, dice, offset, revealed, isRolling) {
-    const currentIndex = revealed;
+  function diceColumn(title, dice, revealed, isRolling) {
     const slots = dice.map((value, index) => {
-      const absoluteIndex = offset + index;
-      const visible = revealed > absoluteIndex;
-      const rollingClass = isRolling && !visible && currentIndex === absoluteIndex ? "rolling" : "";
+      const visible = revealed > index;
+      const rollingClass = isRolling && !visible && revealed === index ? "rolling" : "";
       return `<span class="slot-number ${rollingClass}">${visible ? value : "?"}</span>`;
     }).join("");
     return `<div class="slot-side"><strong>${title}</strong><div class="slot-row">${slots}</div></div>`;
+  }
+
+  function normalizeRoomBattle(nextRoom) {
+    if (!nextRoom?.battle) return nextRoom;
+    const battle = nextRoom.battle;
+    if (battle.stage) return nextRoom;
+    battle.attackerRevealed = Math.min(battle.attackerDice?.length || 0, battle.revealed || 0);
+    battle.defenderRevealed = Math.max(0, (battle.revealed || 0) - (battle.attackerDice?.length || 0));
+    battle.stage = battle.attackerRevealed < battle.attackerDice.length ? "attacker" : battle.defenderRevealed < battle.defenderDice.length ? "defender" : "done";
+    return nextRoom;
   }
 
   function createBackend() {
@@ -200,17 +211,12 @@
     };
   }
 
-  function getRoomCode() {
-    const params = new URLSearchParams(window.location.search);
-    return (params.get("room") || sessionStorage.getItem(CURRENT_ROOM_KEY) || "").trim().toUpperCase();
-  }
-
+  function getRoomCode() { const params = new URLSearchParams(window.location.search); return (params.get("room") || sessionStorage.getItem(CURRENT_ROOM_KEY) || "").trim().toUpperCase(); }
   function getLocalPlayerId() { return sessionStorage.getItem(LOCAL_PLAYER_KEY); }
   function rollDice(amount) { return Array.from({ length: amount }, () => 1 + Math.floor(Math.random() * 6)).sort((a, b) => b - a); }
   function countryName(id) { return id.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); }
   function slug(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
   function clampInt(value, min, max) { return Math.min(Math.max(Math.trunc(value), min), max); }
-  function toast(message) { const node = document.createElement("div"); node.className = "toast"; node.textContent = message; document.body.appendChild(node); window.setTimeout(() => node.remove(), 2200); }
 
   function injectStyles() {
     const style = document.createElement("style");
