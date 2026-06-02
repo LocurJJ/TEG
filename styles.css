@@ -343,7 +343,7 @@ input {
 }
 
 .world-map {
-  aspect-ratio: 13 / 10;
+  aspect-ratio: 19 / 10;
   background:
     radial-gradient(ellipse at 18% 49%, rgba(76, 201, 240, 0.2), transparent 17%),
     radial-gradient(ellipse at 47% 82%, rgba(54, 194, 160, 0.2), transparent 13%),
@@ -354,18 +354,21 @@ input {
     linear-gradient(180deg, rgba(76, 201, 240, 0.18), rgba(15, 22, 29, 0.88));
   border: 1px solid var(--line);
   border-radius: 8px;
-  min-height: clamp(520px, 62vw, 760px);
+  min-height: clamp(420px, 48vw, 760px);
   min-width: 0;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
 .world-map.with-board-image {
-  background:
-    linear-gradient(rgba(10, 15, 19, 0.08), rgba(10, 15, 19, 0.1)),
-    var(--board-image) center / contain no-repeat,
-    #11161c;
+  background-color: #11161c;
+  background-image:
+    linear-gradient(rgba(10, 15, 19, 0.02), rgba(10, 15, 19, 0.03)),
+    var(--board-image, url("mapa.jpeg"));
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .world-map.with-board-image::before,
