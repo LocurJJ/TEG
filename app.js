@@ -214,6 +214,7 @@
   let unsubscribeRoom = null;
   let selectedCountryId = null;
   let hasBoardImage = false;
+  let boardImagePath = "";
   let localPlayerId = sessionStorage.getItem(LOCAL_PLAYER_KEY) || makeId("P");
   sessionStorage.setItem(LOCAL_PLAYER_KEY, localPlayerId);
   detectBoardImage();
@@ -386,6 +387,11 @@
   function renderBoard() {
     els.board.innerHTML = "";
     els.board.className = hasBoardImage ? "board world-map with-board-image" : "board world-map";
+    if (boardImagePath) {
+      els.board.style.backgroundImage = `linear-gradient(rgba(10, 15, 19, 0.02), rgba(10, 15, 19, 0.03)), url("${boardImagePath}")`;
+    } else {
+      els.board.style.backgroundImage = "";
+    }
     renderLandMasses();
     renderRoutes();
     continents.forEach((continent) => {
@@ -458,7 +464,7 @@
     const canAttack = isNeighbor && getSelectedCountry()?.ownerId === localPlayerId && data.ownerId !== localPlayerId;
     button.className = "country map-country";
     button.type = "button";
-    button.style.left = `${toMapPercent(position[0])}%`;
+    button.style.left = `${toMapXPercent(position[0])}%`;
     button.style.top = `${toMapPercent(position[1])}%`;
     button.style.setProperty("--country-color", continent?.color || "#667085");
     button.innerHTML = `
@@ -664,6 +670,12 @@
     return (value / MAP_SIZE) * 100;
   }
 
+  function toMapXPercent(value) {
+    if (!hasBoardImage) return toMapPercent(value);
+    const horizontalImagePadding = 8;
+    return horizontalImagePadding + (value / MAP_SIZE) * (100 - horizontalImagePadding * 2);
+  }
+
   function makeRoomCode() {
     let code = "";
     do {
@@ -715,7 +727,7 @@
     const image = new Image();
     image.onload = () => {
       hasBoardImage = true;
-      document.documentElement.style.setProperty("--board-image", `url("${BOARD_IMAGE_CANDIDATES[index]}")`);
+      boardImagePath = BOARD_IMAGE_CANDIDATES[index];
       if (state?.phase !== "lobby") renderGame();
     };
     image.onerror = () => detectBoardImage(index + 1);
