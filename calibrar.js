@@ -10,7 +10,9 @@
 
   const MAP_SIZE = 130;
   const IMAGE_X_PADDING = 8;
+  const movedPositions = {};
   let active = null;
+  let dragged = false;
 
   injectStyles();
   window.addEventListener("load", boot);
@@ -36,38 +38,62 @@
     board.querySelectorAll(".map-country").forEach((country) => {
       if (country.dataset.calibrationReady) return;
       country.dataset.calibrationReady = "1";
+      applySavedPosition(country);
       country.addEventListener("pointerdown", startDrag);
+      country.addEventListener("click", blockDraggedClick, true);
     });
   }
 
   function startDrag(event) {
     if (!event.currentTarget.classList.contains("map-country")) return;
     event.preventDefault();
+    event.stopPropagation();
     active = event.currentTarget;
+    dragged = false;
     active.setPointerCapture(event.pointerId);
     active.classList.add("dragging-country");
-    moveCountry(event);
+    moveCountry(event, false);
     active.addEventListener("pointermove", moveCountry);
     active.addEventListener("pointerup", stopDrag, { once: true });
     active.addEventListener("pointercancel", stopDrag, { once: true });
   }
 
-  function moveCountry(event) {
+  function moveCountry(event, markDragged = true) {
     if (!active) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (markDragged) dragged = true;
     const board = document.querySelector("#board");
     const rect = board.getBoundingClientRect();
     const x = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
     const y = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
     active.style.left = `${x}%`;
     active.style.top = `${y}%`;
+    movedPositions[getCountryKey(active)] = { left: x, top: y };
   }
 
   function stopDrag(event) {
     if (!active) return;
+    event.preventDefault();
+    event.stopPropagation();
     active.releasePointerCapture?.(event.pointerId);
     active.removeEventListener("pointermove", moveCountry);
     active.classList.remove("dragging-country");
     active = null;
+  }
+
+  function blockDraggedClick(event) {
+    if (!dragged) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragged = false;
+  }
+
+  function applySavedPosition(country) {
+    const saved = movedPositions[getCountryKey(country)];
+    if (!saved) return;
+    country.style.left = `${saved.left}%`;
+    country.style.top = `${saved.top}%`;
   }
 
   function createPanel() {
@@ -97,14 +123,20 @@
 
   function buildCoordinatesText() {
     const rows = Array.from(document.querySelectorAll(".map-country")).map((country) => {
-      const name = country.querySelector(".country-name")?.textContent?.trim() || "";
-      const left = parseFloat(country.style.left);
-      const top = parseFloat(country.style.top);
+      const key = getCountryKey(country);
+      const saved = movedPositions[key];
+      const left = saved?.left ?? parseFloat(country.style.left);
+      const top = saved?.top ?? parseFloat(country.style.top);
       const x = fromScreenX(left);
       const y = (top / 100) * MAP_SIZE;
-      return `    "${slug(name)}": [${formatNumber(x)}, ${formatNumber(y)}],`;
+      return `    "${key}": [${formatNumber(x)}, ${formatNumber(y)}],`;
     });
     return `  const mapPositions = {\n${rows.join("\n")}\n  };`;
+  }
+
+  function getCountryKey(country) {
+    const name = country.querySelector(".country-name")?.textContent?.trim() || "";
+    return slug(name);
   }
 
   function fromScreenX(leftPercent) {
