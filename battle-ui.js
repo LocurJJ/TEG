@@ -139,15 +139,17 @@
     const battle = latest.battle;
     const from = latest.countries[battle.fromId];
     const to = latest.countries[battle.toId];
+    const attackerSorted = sortDice(battle.attackerDice);
+    const defenderSorted = sortDice(battle.defenderDice);
     let attackerLosses = 0;
     let defenderLosses = 0;
-    for (let index = 0; index < Math.min(battle.attackerDice.length, battle.defenderDice.length); index += 1) {
-      if (battle.attackerDice[index] > battle.defenderDice[index]) defenderLosses += 1;
+    for (let index = 0; index < Math.min(attackerSorted.length, defenderSorted.length); index += 1) {
+      if (attackerSorted[index] > defenderSorted[index]) defenderLosses += 1;
       else attackerLosses += 1;
     }
     from.armies -= attackerLosses;
     to.armies -= defenderLosses;
-    let log = `${countryName(battle.fromId)} ataco a ${countryName(battle.toId)}. Dados: ${battle.attackerDice.join("-")} vs ${battle.defenderDice.join("-")}. Perdidas: atacante ${attackerLosses}, defensor ${defenderLosses}.`;
+    let log = `${countryName(battle.fromId)} ataco a ${countryName(battle.toId)}. Dados ordenados: ${attackerSorted.join("-")} vs ${defenderSorted.join("-")}. Perdidas: atacante ${attackerLosses}, defensor ${defenderLosses}.`;
     if (to.armies <= 0) {
       const maxMove = Math.max(1, from.armies - 1);
       let move = Math.min(maxMove, battle.attackerDice.length);
@@ -196,7 +198,8 @@
   }
 
   function diceColumn(title, dice, revealed, isRolling) {
-    const slots = dice.map((value, index) => {
+    const displayDice = revealed >= dice.length ? sortDice(dice) : dice;
+    const slots = displayDice.map((value, index) => {
       const visible = revealed > index;
       const rollingClass = isRolling && !visible && revealed === index ? "rolling" : "";
       return `<span class="slot-number ${rollingClass}">${visible ? value : "?"}</span>`;
@@ -240,7 +243,8 @@
 
   function getRoomCode() { const params = new URLSearchParams(window.location.search); return (params.get("room") || sessionStorage.getItem(CURRENT_ROOM_KEY) || "").trim().toUpperCase(); }
   function getLocalPlayerId() { return sessionStorage.getItem(LOCAL_PLAYER_KEY); }
-  function rollDice(amount) { return Array.from({ length: amount }, () => 1 + Math.floor(Math.random() * 6)).sort((a, b) => b - a); }
+  function rollDice(amount) { return Array.from({ length: amount }, () => 1 + Math.floor(Math.random() * 6)); }
+  function sortDice(dice) { return [...dice].sort((a, b) => b - a); }
   function countryName(id) { return id.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); }
   function slug(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
   function clampInt(value, min, max) { return Math.min(Math.max(Math.trunc(value), min), max); }
