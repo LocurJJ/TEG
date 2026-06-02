@@ -27,7 +27,7 @@
       id: "norteamerica",
       name: "Norte America",
       color: "#4cc9f0",
-      countries: ["Alaska", "Groenlandia", "Labrador", "Isla Victoria", "Oregon", "New York", "Nueva Chicago", "California", "Las Vegas", "Washington", "Texas", "Florida"]
+      countries: ["Texas", "California", "Las Vegas", "Nueva Chicago", "Oregon", "Washington", "Labrador", "Florida", "New York", "Groenlandia", "Isla Victoria", "Alaska"]
     },
     {
       id: "africa",
@@ -39,19 +39,19 @@
       id: "europa",
       name: "Europa",
       color: "#e879f9",
-      countries: ["Portugal", "Espana", "Francia", "Alemania", "Polonia", "Ucrania", "Croacia", "Gran Bretana", "Finlandia", "Islandia", "Albania", "Belgica", "Irlanda", "Bielorusia", "Italia", "Noruega"]
+      countries: ["Portugal", "Espana", "Francia", "Italia", "Alemania", "Serbia", "Croacia", "Polonia", "Albania", "Ucrania", "Bielorusia", "Finlandia", "Noruega", "Islandia", "Irlanda", "Gran Bretana"]
     },
     {
       id: "asia",
       name: "Asia",
       color: "#f43f5e",
-      countries: ["Siberia", "Rusia", "Irak", "Iran", "Israel", "Arabia", "Turquia", "Corea", "Vietnam", "China", "Japon", "India", "Kazakhstan", "Siria", "Filipinas", "Indonesia"]
+      countries: ["Arabia", "Israel", "Irak", "India", "Filipinas", "Vietnam", "Turquia", "Iran", "Rusia", "China", "Chechenia", "Siberia", "Kazakhstan", "Kamtchatka", "Japon", "Corea"]
     },
     {
       id: "oseania",
       name: "Oseania",
       color: "#84cc16",
-      countries: ["Australia", "Nueva Zelanda", "Islas Salomon", "Tonga", "Micronesia", "Islas Marshall"]
+      countries: ["Sumatra", "Australia", "Micronesia", "Islas Marshall", "Tonga", "Nueva Zelanda"]
     }
   ];
 
@@ -63,36 +63,119 @@
     }))
   );
 
+  const mapPositions = {
+    "alaska": [10, 23], "isla-victoria": [18, 28], "groenlandia": [31, 18], "labrador": [29, 36],
+    "oregon": [14, 44], "washington": [20, 48], "california": [13, 56], "las-vegas": [19, 58],
+    "nueva-chicago": [25, 55], "new-york": [31, 53], "texas": [23, 66], "florida": [31, 68],
+    "mexico": [28, 75], "honduras": [34, 78], "el-salvador": [31, 81], "nicaragua": [36, 83],
+    "cuba": [39, 73], "jamaica": [43, 79],
+    "colombia": [43, 88], "venezuela": [49, 86], "brasil": [55, 96], "bolivia": [48, 101],
+    "paraguay": [52, 107], "uruguay": [56, 116], "argentina": [49, 119], "chile": [43, 116],
+    "islandia": [47, 24], "irlanda": [48, 38], "gran-bretana": [53, 37], "portugal": [52, 52],
+    "espana": [56, 52], "francia": [59, 45], "italia": [63, 52], "alemania": [63, 40],
+    "noruega": [61, 28], "finlandia": [68, 29], "polonia": [68, 41], "bielorusia": [72, 39],
+    "ucrania": [73, 48], "croacia": [66, 49], "serbia": [69, 53], "albania": [68, 59],
+    "sahara": [59, 72], "mauritania": [54, 78], "ghana": [58, 88], "nigeria": [64, 86],
+    "egipto": [70, 73], "kongo": [67, 96], "sudafrica": [66, 117], "madagascar": [74, 111],
+    "turquia": [76, 61], "israel": [76, 72], "arabia": [80, 80], "irak": [82, 66],
+    "iran": [87, 65], "india": [93, 84], "rusia": [85, 36], "chechenia": [87, 48],
+    "kazakhstan": [94, 43], "siberia": [103, 35], "china": [103, 64], "vietnam": [108, 78],
+    "filipinas": [116, 84], "corea": [114, 55], "japon": [121, 56], "kamtchatka": [118, 36],
+    "sumatra": [101, 100], "australia": [110, 112], "micronesia": [119, 98],
+    "islas-marshall": [126, 96], "tonga": [127, 116], "nueva-zelanda": [119, 124]
+  };
+
+  const neighbors = normalizeNeighbors({
+    "alaska": ["isla-victoria", "oregon", "kamtchatka"],
+    "isla-victoria": ["alaska", "groenlandia", "labrador", "oregon"],
+    "groenlandia": ["isla-victoria", "labrador", "islandia"],
+    "labrador": ["groenlandia", "isla-victoria", "new-york", "nueva-chicago"],
+    "oregon": ["alaska", "isla-victoria", "washington", "california"],
+    "washington": ["oregon", "nueva-chicago", "las-vegas"],
+    "california": ["oregon", "las-vegas", "texas", "mexico"],
+    "las-vegas": ["california", "washington", "nueva-chicago", "texas"],
+    "nueva-chicago": ["washington", "las-vegas", "new-york", "labrador", "texas"],
+    "new-york": ["nueva-chicago", "labrador", "florida"],
+    "texas": ["california", "las-vegas", "nueva-chicago", "florida", "mexico"],
+    "florida": ["texas", "new-york", "cuba"],
+    "mexico": ["california", "texas", "honduras", "el-salvador"],
+    "honduras": ["mexico", "el-salvador", "nicaragua", "cuba"],
+    "el-salvador": ["mexico", "honduras", "nicaragua"],
+    "nicaragua": ["honduras", "el-salvador", "colombia"],
+    "cuba": ["florida", "honduras", "jamaica"],
+    "jamaica": ["cuba", "venezuela", "colombia"],
+    "colombia": ["nicaragua", "jamaica", "venezuela", "brasil", "bolivia"],
+    "venezuela": ["colombia", "brasil", "jamaica"],
+    "brasil": ["venezuela", "colombia", "bolivia", "paraguay", "uruguay", "sahara"],
+    "bolivia": ["colombia", "brasil", "paraguay", "chile", "argentina"],
+    "paraguay": ["bolivia", "brasil", "argentina", "uruguay"],
+    "uruguay": ["brasil", "paraguay", "argentina"],
+    "argentina": ["chile", "bolivia", "paraguay", "uruguay"],
+    "chile": ["bolivia", "argentina"],
+    "islandia": ["groenlandia", "irlanda", "gran-bretana", "noruega"],
+    "irlanda": ["islandia", "gran-bretana", "francia"],
+    "gran-bretana": ["irlanda", "islandia", "francia", "alemania"],
+    "portugal": ["espana", "sahara"],
+    "espana": ["portugal", "francia", "sahara"],
+    "francia": ["espana", "gran-bretana", "alemania", "italia"],
+    "italia": ["francia", "alemania", "croacia", "albania"],
+    "alemania": ["francia", "gran-bretana", "italia", "polonia", "croacia"],
+    "noruega": ["islandia", "finlandia", "polonia"],
+    "finlandia": ["noruega", "polonia", "bielorusia", "rusia"],
+    "polonia": ["alemania", "noruega", "finlandia", "bielorusia", "ucrania"],
+    "bielorusia": ["finlandia", "polonia", "ucrania", "rusia"],
+    "ucrania": ["polonia", "bielorusia", "serbia", "turquia", "chechenia"],
+    "croacia": ["alemania", "italia", "serbia"],
+    "serbia": ["croacia", "albania", "ucrania"],
+    "albania": ["serbia", "italia", "turquia"],
+    "sahara": ["portugal", "espana", "brasil", "mauritania", "ghana", "nigeria", "egipto"],
+    "mauritania": ["sahara", "ghana"],
+    "ghana": ["mauritania", "sahara", "nigeria", "kongo"],
+    "nigeria": ["sahara", "ghana", "kongo", "egipto"],
+    "egipto": ["sahara", "nigeria", "israel", "arabia"],
+    "kongo": ["ghana", "nigeria", "sudafrica", "madagascar"],
+    "sudafrica": ["kongo", "madagascar"],
+    "madagascar": ["kongo", "sudafrica", "sumatra"],
+    "turquia": ["albania", "ucrania", "israel", "irak", "iran", "chechenia"],
+    "israel": ["egipto", "turquia", "irak", "arabia"],
+    "arabia": ["egipto", "israel", "irak", "india"],
+    "irak": ["israel", "arabia", "turquia", "iran"],
+    "iran": ["irak", "turquia", "chechenia", "kazakhstan", "india"],
+    "india": ["arabia", "iran", "china", "vietnam", "sumatra"],
+    "rusia": ["finlandia", "bielorusia", "chechenia", "siberia", "kazakhstan"],
+    "chechenia": ["ucrania", "turquia", "iran", "rusia", "kazakhstan"],
+    "kazakhstan": ["rusia", "chechenia", "iran", "china", "siberia"],
+    "siberia": ["rusia", "kazakhstan", "china", "kamtchatka"],
+    "china": ["kazakhstan", "siberia", "india", "vietnam", "corea"],
+    "vietnam": ["india", "china", "filipinas", "sumatra"],
+    "filipinas": ["vietnam", "corea", "micronesia"],
+    "corea": ["china", "japon", "filipinas", "kamtchatka"],
+    "japon": ["corea", "kamtchatka"],
+    "kamtchatka": ["alaska", "siberia", "corea", "japon"],
+    "sumatra": ["india", "vietnam", "madagascar", "australia"],
+    "australia": ["sumatra", "micronesia", "tonga", "nueva-zelanda"],
+    "micronesia": ["australia", "filipinas", "islas-marshall", "tonga"],
+    "islas-marshall": ["micronesia", "tonga"],
+    "tonga": ["micronesia", "islas-marshall", "australia", "nueva-zelanda"],
+    "nueva-zelanda": ["australia", "tonga"]
+  });
+
   const els = {
-    homeView: document.querySelector("#homeView"),
-    lobbyView: document.querySelector("#lobbyView"),
-    gameView: document.querySelector("#gameView"),
-    createForm: document.querySelector("#createForm"),
-    joinForm: document.querySelector("#joinForm"),
-    hostName: document.querySelector("#hostName"),
-    joinCode: document.querySelector("#joinCode"),
-    joinName: document.querySelector("#joinName"),
-    roomPill: document.querySelector("#roomPill"),
-    lobbyTitle: document.querySelector("#lobbyTitle"),
-    playerList: document.querySelector("#playerList"),
-    colorGrid: document.querySelector("#colorGrid"),
-    lobbyHint: document.querySelector("#lobbyHint"),
-    startGameBtn: document.querySelector("#startGameBtn"),
-    leaveLobbyBtn: document.querySelector("#leaveLobbyBtn"),
-    gameTitle: document.querySelector("#gameTitle"),
-    turnCard: document.querySelector("#turnCard"),
-    gamePlayers: document.querySelector("#gamePlayers"),
-    continentLegend: document.querySelector("#continentLegend"),
-    board: document.querySelector("#board"),
-    finishTurnBtn: document.querySelector("#finishTurnBtn"),
-    resetBtn: document.querySelector("#resetBtn"),
-    copyCodeBtn: document.querySelector("#copyCodeBtn"),
-    countryTemplate: document.querySelector("#countryTemplate")
+    homeView: document.querySelector("#homeView"), lobbyView: document.querySelector("#lobbyView"), gameView: document.querySelector("#gameView"),
+    createForm: document.querySelector("#createForm"), joinForm: document.querySelector("#joinForm"), hostName: document.querySelector("#hostName"),
+    joinCode: document.querySelector("#joinCode"), joinName: document.querySelector("#joinName"), roomPill: document.querySelector("#roomPill"),
+    lobbyTitle: document.querySelector("#lobbyTitle"), playerList: document.querySelector("#playerList"), colorGrid: document.querySelector("#colorGrid"),
+    lobbyHint: document.querySelector("#lobbyHint"), startGameBtn: document.querySelector("#startGameBtn"), leaveLobbyBtn: document.querySelector("#leaveLobbyBtn"),
+    gameTitle: document.querySelector("#gameTitle"), turnCard: document.querySelector("#turnCard"), gamePlayers: document.querySelector("#gamePlayers"),
+    continentLegend: document.querySelector("#continentLegend"), mapHelp: document.querySelector("#mapHelp"), attackPanel: document.querySelector("#attackPanel"),
+    board: document.querySelector("#board"), finishTurnBtn: document.querySelector("#finishTurnBtn"), resetBtn: document.querySelector("#resetBtn"),
+    copyCodeBtn: document.querySelector("#copyCodeBtn")
   };
 
   const backend = createBackend();
   let state = null;
   let unsubscribeRoom = null;
+  let selectedCountryId = null;
   let localPlayerId = sessionStorage.getItem(LOCAL_PLAYER_KEY) || makeId("P");
   sessionStorage.setItem(LOCAL_PLAYER_KEY, localPlayerId);
 
@@ -172,18 +255,14 @@
     state.phase = "lobby";
     state.countries = {};
     state.placement = null;
+    selectedCountryId = null;
     saveState();
     render();
   });
 
   els.copyCodeBtn.addEventListener("click", async () => {
     if (!state) return;
-    try {
-      await navigator.clipboard.writeText(state.code);
-      toast("Codigo copiado.");
-    } catch {
-      toast(state.code);
-    }
+    try { await navigator.clipboard.writeText(state.code); toast("Codigo copiado."); } catch { toast(state.code); }
   });
 
   function render() {
@@ -191,7 +270,6 @@
     els.lobbyView.classList.toggle("hidden", !state || state.phase !== "lobby");
     els.gameView.classList.toggle("hidden", !state || state.phase === "lobby");
     els.roomPill.textContent = state ? `Codigo ${state.code}` : "Sin partida";
-
     if (!state) return;
     if (state.phase === "lobby") renderLobby();
     if (state.phase !== "lobby") renderGame();
@@ -231,21 +309,17 @@
     state.players.forEach((player) => els.gamePlayers.appendChild(playerRow(player)));
     els.finishTurnBtn.disabled = !canActNow() || getCurrentPlacement()?.remaining !== 0;
     els.resetBtn.disabled = !isHost();
-
     const placement = getCurrentPlacement();
     if (state.phase === "placement" && placement) {
       const player = getPlayer(placement.playerId);
       const mine = placement.playerId === localPlayerId;
-      els.turnCard.innerHTML = `
-        <p>Fase de colocacion <strong>${state.placement.round === 0 ? "8 fichas" : "4 fichas"}</strong></p>
-        <p>Turno de <strong>${player?.name || "Jugador"}</strong></p>
-        <p>${mine ? "Te quedan" : "Le quedan"} <strong>${placement.remaining}</strong> fichas.</p>
-      `;
+      els.turnCard.innerHTML = `<p>Fase de colocacion <strong>${state.placement.round === 0 ? "8 fichas" : "4 fichas"}</strong></p><p>Turno de <strong>${player?.name || "Jugador"}</strong></p><p>${mine ? "Te quedan" : "Le quedan"} <strong>${placement.remaining}</strong> fichas.</p>`;
     } else {
       els.turnCard.innerHTML = "<p>La colocacion inicial termino. El proximo paso es agregar ataques limitrofes y objetivos.</p>";
     }
-
     renderLegend();
+    renderMapHelp();
+    renderAttackPanel();
     renderBoard();
   }
 
@@ -261,38 +335,92 @@
 
   function renderBoard() {
     els.board.innerHTML = "";
+    els.board.className = "board world-map";
+    renderRoutes();
     continents.forEach((continent) => {
-      const group = document.createElement("section");
-      group.className = "continent";
-      group.innerHTML = `
-        <div class="continent-title">
-          <span class="continent-dot" style="background:${continent.color}"></span>
-          <h3>${continent.name}</h3>
-        </div>
-        <div class="continent-countries"></div>
-      `;
-      const list = group.querySelector(".continent-countries");
-      continent.countries.forEach((countryName) => {
-        const country = countryData.find((item) => item.name === countryName);
-        list.appendChild(countryButton(country));
-      });
-      els.board.appendChild(group);
+      const label = document.createElement("div");
+      label.className = `continent-map-label label-${continent.id}`;
+      label.innerHTML = `<span class="continent-dot" style="background:${continent.color}"></span>${continent.name}`;
+      els.board.appendChild(label);
     });
+    countryData.forEach((country) => els.board.appendChild(countryButton(country)));
+  }
+
+  function renderRoutes() {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "map-routes");
+    svg.setAttribute("viewBox", "0 0 130 130");
+    svg.setAttribute("preserveAspectRatio", "none");
+    const drawn = new Set();
+    Object.entries(neighbors).forEach(([from, targets]) => {
+      targets.forEach((to) => {
+        const key = [from, to].sort().join("-");
+        if (drawn.has(key) || !mapPositions[from] || !mapPositions[to]) return;
+        drawn.add(key);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", mapPositions[from][0]);
+        line.setAttribute("y1", mapPositions[from][1]);
+        line.setAttribute("x2", mapPositions[to][0]);
+        line.setAttribute("y2", mapPositions[to][1]);
+        line.setAttribute("class", selectedCountryId && (from === selectedCountryId || to === selectedCountryId) ? "route active" : "route");
+        svg.appendChild(line);
+      });
+    });
+    els.board.appendChild(svg);
   }
 
   function countryButton(country) {
-    const button = els.countryTemplate.content.firstElementChild.cloneNode(true);
-    const data = state.countries[country.id];
+    const button = document.createElement("button");
+    const data = state.countries[country.id] || { ownerId: null, armies: 0 };
     const owner = getPlayer(data.ownerId);
     const color = getColor(owner?.colorId);
-    button.querySelector(".country-name").textContent = country.name;
-    button.querySelector(".owner-dot").style.background = color?.value || "#667085";
-    button.querySelector(".army-count").textContent = data.armies;
+    const continent = continents.find((item) => item.id === country.continentId);
+    const position = mapPositions[country.id] || [50, 50];
+    const isSelected = selectedCountryId === country.id;
+    const isNeighbor = selectedCountryId && neighbors[selectedCountryId]?.includes(country.id);
+    const canAttack = isNeighbor && getSelectedCountry()?.ownerId === localPlayerId && data.ownerId !== localPlayerId;
+    button.className = "country map-country";
+    button.type = "button";
+    button.style.left = `${position[0]}%`;
+    button.style.top = `${position[1]}%`;
+    button.style.setProperty("--country-color", continent?.color || "#667085");
+    button.innerHTML = `<span class="country-name">${escapeHtml(country.name)}</span><span class="country-meta"><span class="owner-dot" style="background:${color?.value || "#667085"}"></span><span class="army-count">${data.armies}</span></span>`;
     button.classList.toggle("owned-by-me", data.ownerId === localPlayerId);
+    button.classList.toggle("selected-country", isSelected);
+    button.classList.toggle("neighbor-country", Boolean(isNeighbor));
+    button.classList.toggle("attack-country", Boolean(canAttack));
     button.classList.toggle("disabled-click", !canPlaceOn(country.id));
     button.title = owner ? `${owner.name} - ${data.armies} fichas` : country.name;
-    button.addEventListener("click", () => placeArmy(country.id));
+    button.addEventListener("click", () => handleCountryClick(country.id));
     return button;
+  }
+
+  function handleCountryClick(countryId) {
+    selectedCountryId = countryId;
+    if (canPlaceOn(countryId)) {
+      placeArmy(countryId);
+      return;
+    }
+    renderGame();
+  }
+
+  function renderMapHelp() {
+    els.mapHelp.textContent = state.phase === "placement"
+      ? "Toca tus paises para poner fichas. Al tocar cualquier pais tambien se resaltan sus limitrofes."
+      : "Toca un pais propio para ver a quien puede atacar. Los vecinos enemigos aparecen resaltados.";
+  }
+
+  function renderAttackPanel() {
+    if (!selectedCountryId) {
+      els.attackPanel.innerHTML = "<strong>Seleccion:</strong> toca un pais del mapa para ver tropas, dueno y limitrofes.";
+      return;
+    }
+    const country = getCountry(selectedCountryId);
+    const data = getSelectedCountry();
+    const owner = getPlayer(data?.ownerId);
+    const adjacent = (neighbors[selectedCountryId] || []).map(getCountry).filter(Boolean);
+    const attackable = adjacent.filter((item) => state.countries[item.id]?.ownerId !== localPlayerId && data?.ownerId === localPlayerId);
+    els.attackPanel.innerHTML = `<div><strong>${country?.name || "Pais"}</strong> - ${owner?.name || "Sin dueno"} - ${data?.armies || 0} tropas</div><div><span>Limitrofes:</span> ${adjacent.map((item) => item.name).join(", ") || "sin cargar"}</div><div><span>Podrias atacar:</span> ${attackable.map((item) => item.name).join(", ") || "ninguno ahora"}</div>`;
   }
 
   function playerRow(player) {
@@ -300,25 +428,20 @@
     const row = document.createElement("div");
     row.className = "player-row";
     row.classList.toggle("current", player.id === localPlayerId);
-    row.innerHTML = `
-      <span class="player-color" style="background:${color?.value || "#667085"}"></span>
-      <strong>${escapeHtml(player.name)}</strong>
-      <span class="player-status">${player.isHost ? "Creador" : "Jugador"}</span>
-    `;
+    row.innerHTML = `<span class="player-color" style="background:${color?.value || "#667085"}"></span><strong>${escapeHtml(player.name)}</strong><span class="player-status">${player.isHost ? "Creador" : "Jugador"}</span>`;
     return row;
   }
 
   function chooseColor(colorId) {
     const owner = state.players.find((player) => player.colorId === colorId);
     if (owner && owner.id !== localPlayerId) return;
-    state.players = state.players.map((player) =>
-      player.id === localPlayerId ? { ...player, colorId } : player
-    );
+    state.players = state.players.map((player) => player.id === localPlayerId ? { ...player, colorId } : player);
     saveState();
     render();
   }
 
   function startGame() {
+    selectedCountryId = null;
     const players = shuffle(state.players.filter((player) => player.colorId));
     const shuffledCountries = shuffle(countryData);
     const countries = {};
@@ -329,11 +452,7 @@
     state.players = players;
     state.countries = countries;
     state.phase = "placement";
-    state.placement = {
-      round: 0,
-      turnIndex: 0,
-      turns: players.map((player) => ({ playerId: player.id, remaining: 8 }))
-    };
+    state.placement = { round: 0, turnIndex: 0, turns: players.map((player) => ({ playerId: player.id, remaining: 8 })) };
   }
 
   function placeArmy(countryId) {
@@ -369,21 +488,8 @@
     return Boolean(state?.phase === "placement" && current?.playerId === localPlayerId);
   }
 
-  function getCurrentPlacement() {
-    if (!state?.placement) return null;
-    return state.placement.turns[state.placement.turnIndex] || null;
-  }
-
-  function newRoom(code, host) {
-    return {
-      code,
-      phase: "lobby",
-      createdAt: Date.now(),
-      players: [{ ...host, colorId: null }],
-      countries: {},
-      placement: null
-    };
-  }
+  function getCurrentPlacement() { return state?.placement ? state.placement.turns[state.placement.turnIndex] || null : null; }
+  function newRoom(code, host) { return { code, phase: "lobby", createdAt: Date.now(), players: [{ ...host, colorId: null }], countries: {}, placement: null }; }
 
   function upsertPlayer(player) {
     const existing = state.players.find((item) => item.id === player.id);
@@ -394,52 +500,30 @@
     state.players.push({ ...player, colorId: null });
   }
 
-  async function saveState() {
-    await backend.saveRoom(state);
-  }
-
-  async function loadRoom(code) {
-    return backend.loadRoom(code);
-  }
+  async function saveState() { await backend.saveRoom(state); }
+  async function loadRoom(code) { return backend.loadRoom(code); }
 
   function subscribeToRoom(code) {
     if (unsubscribeRoom) unsubscribeRoom();
     unsubscribeRoom = backend.subscribeRoom(code, (room) => {
-      if (!room) {
-        state = null;
-        render();
-        return;
-      }
+      if (!room) { state = null; render(); return; }
       state = room;
       render();
     });
   }
 
-  function storageKey(code) {
-    return `${STORAGE_PREFIX}${code}`;
-  }
-
-  function isHost() {
-    return Boolean(getMe()?.isHost);
-  }
-
-  function getMe() {
-    return state?.players.find((player) => player.id === localPlayerId);
-  }
-
-  function getPlayer(id) {
-    return state?.players.find((player) => player.id === id);
-  }
-
-  function getColor(id) {
-    return colors.find((color) => color.id === id);
-  }
+  function storageKey(code) { return `${STORAGE_PREFIX}${code}`; }
+  function isHost() { return Boolean(getMe()?.isHost); }
+  function getMe() { return state?.players.find((player) => player.id === localPlayerId); }
+  function getPlayer(id) { return state?.players.find((player) => player.id === id); }
+  function getCountry(id) { return countryData.find((country) => country.id === id); }
+  function getSelectedCountry() { return selectedCountryId ? state?.countries[selectedCountryId] : null; }
+  function getColor(id) { return colors.find((color) => color.id === id); }
 
   function makeRoomCode() {
     let code = "";
-    do {
-      code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    } while (backend.mode === "local" && localStorage.getItem(storageKey(code)));
+    do { code = Math.random().toString(36).slice(2, 8).toUpperCase(); }
+    while (backend.mode === "local" && localStorage.getItem(storageKey(code)));
     return code;
   }
 
@@ -451,79 +535,38 @@
       const db = firebase.database();
       return {
         mode: "firebase",
-        async saveRoom(room) {
-          await db.ref(`rooms/${room.code}`).set(room);
-        },
-        async loadRoom(code) {
-          const snapshot = await db.ref(`rooms/${code}`).get();
-          return snapshot.exists() ? snapshot.val() : null;
-        },
-        subscribeRoom(code, callback) {
-          const ref = db.ref(`rooms/${code}`);
-          ref.on("value", (snapshot) => callback(snapshot.exists() ? snapshot.val() : null));
-          return () => ref.off();
-        }
+        async saveRoom(room) { await db.ref(`rooms/${room.code}`).set(room); },
+        async loadRoom(code) { const snapshot = await db.ref(`rooms/${code}`).get(); return snapshot.exists() ? snapshot.val() : null; },
+        subscribeRoom(code, callback) { const ref = db.ref(`rooms/${code}`); ref.on("value", (snapshot) => callback(snapshot.exists() ? snapshot.val() : null)); return () => ref.off(); }
       };
     }
-
     return {
       mode: "local",
-      async saveRoom(room) {
-        localStorage.setItem(storageKey(room.code), JSON.stringify(room));
-      },
-      async loadRoom(code) {
-        const raw = localStorage.getItem(storageKey(code));
-        return raw ? JSON.parse(raw) : null;
-      },
-      subscribeRoom() {
-        return () => {};
-      }
+      async saveRoom(room) { localStorage.setItem(storageKey(room.code), JSON.stringify(room)); },
+      async loadRoom(code) { const raw = localStorage.getItem(storageKey(code)); return raw ? JSON.parse(raw) : null; },
+      subscribeRoom() { return () => {}; }
     };
   }
 
-  function makeId(prefix) {
-    return `${prefix}-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  function normalizeNeighbors(map) {
+    const normalized = {};
+    Object.entries(map).forEach(([countryId, countryNeighbors]) => {
+      if (!normalized[countryId]) normalized[countryId] = [];
+      countryNeighbors.forEach((neighborId) => {
+        if (!normalized[countryId].includes(neighborId)) normalized[countryId].push(neighborId);
+        if (!normalized[neighborId]) normalized[neighborId] = [];
+        if (!normalized[neighborId].includes(countryId)) normalized[neighborId].push(countryId);
+      });
+    });
+    return normalized;
   }
 
-  function shuffle(items) {
-    const copy = [...items];
-    for (let index = copy.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
-    }
-    return copy;
-  }
-
-  function slug(value) {
-    return value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  }
-
-  function cleanName(value) {
-    return value.trim().replace(/\s+/g, " ").slice(0, 18);
-  }
-
-  function escapeHtml(value) {
-    return value.replace(/[&<>"']/g, (char) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    })[char]);
-  }
-
-  function toast(message) {
-    const node = document.createElement("div");
-    node.className = "toast";
-    node.textContent = message;
-    document.body.appendChild(node);
-    window.setTimeout(() => node.remove(), 2200);
-  }
+  function makeId(prefix) { return `${prefix}-${Math.random().toString(36).slice(2)}-${Date.now()}`; }
+  function shuffle(items) { const copy = [...items]; for (let index = copy.length - 1; index > 0; index -= 1) { const swapIndex = Math.floor(Math.random() * (index + 1)); [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]; } return copy; }
+  function slug(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+  function cleanName(value) { return value.trim().replace(/\s+/g, " ").slice(0, 18); }
+  function escapeHtml(value) { return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]); }
+  function toast(message) { const node = document.createElement("div"); node.className = "toast"; node.textContent = message; document.body.appendChild(node); window.setTimeout(() => node.remove(), 2200); }
 
   render();
 })();
