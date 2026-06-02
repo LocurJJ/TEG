@@ -90,32 +90,35 @@
     countryTemplate: document.querySelector("#countryTemplate")
   };
 
+  const backend = createBackend();
   let state = null;
-  let localPlayerId = localStorage.getItem(LOCAL_PLAYER_KEY) || makeId("P");
-  localStorage.setItem(LOCAL_PLAYER_KEY, localPlayerId);
+  let unsubscribeRoom = null;
+  let localPlayerId = sessionStorage.getItem(LOCAL_PLAYER_KEY) || makeId("P");
+  sessionStorage.setItem(LOCAL_PLAYER_KEY, localPlayerId);
 
   window.addEventListener("storage", (event) => {
-    if (!state || event.key !== storageKey(state.code) || !event.newValue) return;
+    if (backend.mode !== "local" || !state || event.key !== storageKey(state.code) || !event.newValue) return;
     state = JSON.parse(event.newValue);
     render();
   });
 
-  els.createForm.addEventListener("submit", (event) => {
+  els.createForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const name = cleanName(els.hostName.value) || "Anfitrion";
     const code = makeRoomCode();
     state = newRoom(code, { id: localPlayerId, name, isHost: true });
-    saveState();
+    await saveState();
+    subscribeToRoom(code);
     render();
   });
 
-  els.joinForm.addEventListener("submit", (event) => {
+  els.joinForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const code = els.joinCode.value.trim().toUpperCase();
     const name = cleanName(els.joinName.value) || "Jugador";
-    const loaded = loadRoom(code);
+    const loaded = await loadRoom(code);
     if (!loaded) {
-      toast("No encontre esa partida en este navegador.");
+      toast(backend.mode === "firebase" ? "No encontre esa partida online." : "No encontre esa partida en este navegador.");
       return;
     }
     if (loaded.players.length >= 6 && !loaded.players.some((player) => player.id === localPlayerId)) {
@@ -123,12 +126,19 @@
       return;
     }
     state = loaded;
+    subscribeToRoom(code);
+    if (state.players.some((player) => player.id === localPlayerId)) {
+      localPlayerId = makeId("P");
+      sessionStorage.setItem(LOCAL_PLAYER_KEY, localPlayerId);
+    }
     upsertPlayer({ id: localPlayerId, name, isHost: false });
-    saveState();
+    await saveState();
     render();
   });
 
   els.leaveLobbyBtn.addEventListener("click", () => {
+    if (unsubscribeRoom) unsubscribeRoom();
+    unsubscribeRoom = null;
     state = null;
     render();
   });
@@ -195,7 +205,9 @@
     const allReady = state.players.length >= 2 && state.players.every((player) => player.colorId);
     els.startGameBtn.disabled = !isHost() || !allReady;
     els.startGameBtn.textContent = isHost() ? "Repartir paises y empezar" : "Esperando al creador";
-    els.lobbyHint.textContent = "Este prototipo sincroniza entre pestanas del mismo navegador. Para jugar desde distintas compus/celulares hay que conectarle una base realtime.";
+    els.lobbyHint.textContent = backend.mode === "firebase"
+      ? "Modo online activo: los jugadores pueden unirse desde otras compus o celulares con este codigo."
+      : "Modo local: para jugar desde distintas compus/celulares completa firebase-config.js con tu configuracion.";
   }
 
   function renderColorGrid() {
@@ -382,13 +394,25 @@
     state.players.push({ ...player, colorId: null });
   }
 
-  function saveState() {
-    localStorage.setItem(storageKey(state.code), JSON.stringify(state));
+  async function saveState() {
+    await backend.saveRoom(state);
   }
 
-  function loadRoom(code) {
-    const raw = localStorage.getItem(storageKey(code));
-    return raw ? JSON.parse(raw) : null;
+  async function loadRoom(code) {
+    return backend.loadRoom(code);
+  }
+
+  function subscribeToRoom(code) {
+    if (unsubscribeRoom) unsubscribeRoom();
+    unsubscribeRoom = backend.subscribeRoom(code, (room) => {
+      if (!room) {
+        state = null;
+        render();
+        return;
+      }
+      state = room;
+      render();
+    });
   }
 
   function storageKey(code) {
@@ -408,15 +432,53 @@
   }
 
   function getColor(id) {
-    return colors.find((color) => color.id === id);
+    return colors.find((color) => color.id);
   }
 
   function makeRoomCode() {
     let code = "";
     do {
       code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    } while (localStorage.getItem(storageKey(code)));
+    } while (backend.mode === "local" && localStorage.getItem(storageKey(code)));
     return code;
+  }
+
+  function createBackend() {
+    const config = window.TEG_FIREBASE_CONFIG;
+    const canUseFirebase = Boolean(config?.apiKey && config?.databaseURL && window.firebase?.database);
+    if (canUseFirebase) {
+      if (!firebase.apps.length) firebase.initializeApp(config);
+      const db = firebase.database();
+      return {
+        mode: "firebase",
+        async saveRoom(room) {
+          await db.ref(`rooms/${room.code}`).set(room);
+        },
+        async loadRoom(code) {
+          const snapshot = await db.ref(`rooms/${code}`).get();
+          return snapshot.exists() ? snapshot.val() : null;
+        },
+        subscribeRoom(code, callback) {
+          const ref = db.ref(`rooms/${code}`);
+          ref.on("value", (snapshot) => callback(snapshot.exists() ? snapshot.val() : null));
+          return () => ref.off();
+        }
+      };
+    }
+
+    return {
+      mode: "local",
+      async saveRoom(room) {
+        localStorage.setItem(storageKey(room.code), JSON.stringify(room));
+      },
+      async loadRoom(code) {
+        const raw = localStorage.getItem(storageKey(code));
+        return raw ? JSON.parse(raw) : null;
+      },
+      subscribeRoom() {
+        return () => {};
+      }
+    };
   }
 
   function makeId(prefix) {
