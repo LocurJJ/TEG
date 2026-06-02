@@ -3,10 +3,14 @@
   const LOCAL_PLAYER_KEY = "teg2-local-player";
   const CURRENT_ROOM_KEY = "teg2-current-room";
   const REVEAL_DELAY = 1200;
+  const POLL_DELAY = 700;
   let room = null;
   let backend = null;
   let unsubscribe = null;
+  let pollTimer = null;
   let rolling = false;
+  let lastBattleSignature = "";
+  let hadBattle = false;
 
   injectStyles();
   window.addEventListener("load", boot);
@@ -14,16 +18,38 @@
   function boot() {
     backend = createBackend();
     const code = getRoomCode();
-    if (code) subscribe(code);
+    if (code) {
+      subscribe(code);
+      startPolling(code);
+    }
     document.addEventListener("click", interceptAttack, true);
   }
 
   function subscribe(code) {
     if (unsubscribe) unsubscribe();
     unsubscribe = backend.subscribeRoom(code, (nextRoom) => {
-      room = normalizeRoomBattle(nextRoom);
-      renderBattle();
+      updateRoom(nextRoom);
     });
+  }
+
+  function startPolling(code) {
+    if (pollTimer) window.clearInterval(pollTimer);
+    pollTimer = window.setInterval(async () => {
+      const latest = await backend.loadRoom(code);
+      updateRoom(latest);
+    }, POLL_DELAY);
+  }
+
+  function updateRoom(nextRoom) {
+    const normalized = normalizeRoomBattle(nextRoom);
+    const signature = battleSignature(normalized?.battle);
+    const battleJustEnded = hadBattle && !normalized?.battle;
+    if (signature === lastBattleSignature && !battleJustEnded) return;
+    room = normalized;
+    lastBattleSignature = signature;
+    hadBattle = Boolean(normalized?.battle);
+    renderBattle();
+    if (battleJustEnded) window.setTimeout(() => window.location.reload(), 350);
   }
 
   async function interceptAttack(event) {
@@ -43,8 +69,7 @@
     const latest = await backend.loadRoom(code);
     if (!latest) return toast("No pude leer la partida online.");
     if (latest.battle) {
-      room = normalizeRoomBattle(latest);
-      renderBattle();
+      updateRoom(latest);
       return;
     }
 
@@ -67,8 +92,7 @@
       createdAt: Date.now()
     };
     await backend.saveRoom(latest);
-    room = latest;
-    renderBattle();
+    updateRoom(latest);
   }
 
   async function revealNext() {
@@ -97,9 +121,8 @@
         if (nextBattle.defenderRevealed >= nextBattle.defenderDice.length) nextBattle.stage = "done";
       }
       await backend.saveRoom(latest);
-      room = latest;
       rolling = false;
-      renderBattle();
+      updateRoom(latest);
     }, REVEAL_DELAY);
   }
 
@@ -109,8 +132,7 @@
     if (!latest?.battle) return;
     resolveBattle(latest);
     await backend.saveRoom(latest);
-    room = latest;
-    renderBattle();
+    updateRoom(latest);
   }
 
   function resolveBattle(latest) {
@@ -153,7 +175,7 @@
     const isDefender = battle.defenderId === playerId;
     const canReveal = !isRolling && ((battle.stage === "attacker" && isAttacker && battle.attackerRevealed < battle.attackerDice.length) || (battle.stage === "defender" && isDefender && battle.defenderRevealed < battle.defenderDice.length));
     const canApply = !isRolling && battle.stage === "done" && isAttacker;
-    const note = battle.stage === "attacker" ? (isAttacker ? "Tira tus numeros de ataque." : "Agus/atacante esta tirando sus numeros.") : battle.stage === "defender" ? (isDefender ? "Ahora tira tus numeros de defensa." : "El defensor esta tirando sus numeros.") : (isAttacker ? "Resultado listo para aplicar." : "Resultado listo. Esperando al atacante.");
+    const note = battle.stage === "attacker" ? (isAttacker ? "Tira tus numeros de ataque." : "El atacante esta tirando sus numeros.") : battle.stage === "defender" ? (isDefender ? "Ahora tira tus numeros de defensa." : "El defensor esta tirando sus numeros.") : (isAttacker ? "Resultado listo para aplicar." : "Resultado listo. Esperando al atacante.");
     const modal = existing || document.createElement("div");
     modal.className = "battle-modal";
     modal.innerHTML = `
@@ -190,6 +212,11 @@
     battle.defenderRevealed = Math.max(0, (battle.revealed || 0) - (battle.attackerDice?.length || 0));
     battle.stage = battle.attackerRevealed < battle.attackerDice.length ? "attacker" : battle.defenderRevealed < battle.defenderDice.length ? "defender" : "done";
     return nextRoom;
+  }
+
+  function battleSignature(battle) {
+    if (!battle) return "none";
+    return [battle.fromId, battle.toId, battle.stage, battle.attackerRevealed || 0, battle.defenderRevealed || 0, battle.attackerDice?.join("-"), battle.defenderDice?.join("-")].join("|");
   }
 
   function createBackend() {
