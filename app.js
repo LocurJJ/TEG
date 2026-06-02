@@ -432,7 +432,7 @@
   }
 
   function getColor(id) {
-    return colors.find((color) => color.id);
+    return colors.find((color) => color.id === id);
   }
 
   function makeRoomCode() {
