@@ -2,7 +2,7 @@
   const STORAGE_PREFIX = "teg2-room-";
   const LOCAL_PLAYER_KEY = "teg2-local-player";
   const CURRENT_ROOM_KEY = "teg2-current-room";
-  const REVEAL_DELAY = 1250;
+  const REVEAL_DELAY = 1200;
   let room = null;
   let backend = null;
   let unsubscribe = null;
@@ -26,46 +26,61 @@
     });
   }
 
-  function interceptAttack(event) {
+  async function interceptAttack(event) {
     const attackButton = event.target.closest(".attack-option, .map-country.attack-country");
     if (!attackButton || rolling) return;
-    const code = getRoomCode();
-    if (!code) return;
-    if (!room) subscribe(code);
     const selected = document.querySelector(".map-country.selected-country");
     if (!selected) return;
-
-    const fromId = slug(selected.querySelector(".country-name")?.textContent || "");
-    const toId = attackButton.dataset.target || slug(attackButton.querySelector(".country-name")?.textContent || "");
-    const latest = room;
-    if (!latest || latest.battle) return;
-    const from = latest.countries?.[fromId];
-    const to = latest.countries?.[toId];
-    const playerId = getLocalPlayerId();
-    if (!from || !to || from.ownerId !== playerId || to.ownerId === playerId || from.armies <= 1) return;
 
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
 
-    const attackerDiceCount = Math.min(3, from.armies - 1);
-    const defenderDiceCount = Math.min(3, to.armies);
-    const nextRoom = JSON.parse(JSON.stringify(latest));
-    nextRoom.battle = {
+    const code = getRoomCode();
+    if (!code) {
+      toast("No encontre el codigo de partida.");
+      return;
+    }
+    const fromId = slug(selected.querySelector(".country-name")?.textContent || "");
+    const toId = attackButton.dataset.target || slug(attackButton.querySelector(".country-name")?.textContent || "");
+    const latest = await backend.loadRoom(code);
+    if (!latest) {
+      toast("No pude leer la partida online.");
+      return;
+    }
+    if (latest.battle) {
+      toast("Ya hay una batalla en curso.");
+      return;
+    }
+    const from = latest.countries?.[fromId];
+    const to = latest.countries?.[toId];
+    const playerId = getLocalPlayerId();
+    if (!from || !to) {
+      toast("No pude identificar los paises del ataque.");
+      return;
+    }
+    if (from.ownerId !== playerId || to.ownerId === playerId || from.armies <= 1) {
+      toast("Ese ataque no se puede hacer ahora.");
+      return;
+    }
+
+    latest.battle = {
       fromId,
       toId,
       attackerId: playerId,
       defenderId: to.ownerId,
-      attackerDice: rollDice(attackerDiceCount),
-      defenderDice: rollDice(defenderDiceCount),
+      attackerDice: rollDice(Math.min(3, from.armies - 1)),
+      defenderDice: rollDice(Math.min(3, to.armies)),
       revealed: 0,
       createdAt: Date.now()
     };
-    backend.saveRoom(nextRoom);
+    await backend.saveRoom(latest);
   }
 
   async function revealNext() {
     if (!room?.battle || rolling || room.battle.attackerId !== getLocalPlayerId()) return;
+    const total = room.battle.attackerDice.length + room.battle.defenderDice.length;
+    if ((room.battle.revealed || 0) >= total) return;
     rolling = true;
     renderBattle(true);
     window.setTimeout(async () => {
@@ -75,13 +90,19 @@
         renderBattle();
         return;
       }
-      const total = latest.battle.attackerDice.length + latest.battle.defenderDice.length;
       latest.battle.revealed = Math.min(total, (latest.battle.revealed || 0) + 1);
-      if (latest.battle.revealed >= total) resolveBattle(latest);
       await backend.saveRoom(latest);
       rolling = false;
       renderBattle();
     }, REVEAL_DELAY);
+  }
+
+  async function applyResult() {
+    if (!room?.battle || rolling || room.battle.attackerId !== getLocalPlayerId()) return;
+    const latest = await backend.loadRoom(room.code);
+    if (!latest?.battle) return;
+    resolveBattle(latest);
+    await backend.saveRoom(latest);
   }
 
   function resolveBattle(latest) {
@@ -100,10 +121,8 @@
     if (to.armies <= 0) {
       const maxMove = Math.max(1, from.armies - 1);
       let move = Math.min(maxMove, battle.attackerDice.length);
-      if (battle.attackerId === getLocalPlayerId()) {
-        const requested = Number(window.prompt(`Conquistaste ${countryName(battle.toId)}. Cuantas tropas queres mover? 1 a ${maxMove}`, String(move)));
-        move = clampInt(Number.isFinite(requested) ? requested : move, 1, maxMove);
-      }
+      const requested = Number(window.prompt(`Conquistaste ${countryName(battle.toId)}. Cuantas tropas queres mover? 1 a ${maxMove}`, String(move)));
+      move = clampInt(Number.isFinite(requested) ? requested : move, 1, maxMove);
       from.armies -= move;
       to.ownerId = battle.attackerId;
       to.armies = move;
@@ -123,28 +142,35 @@
     const battle = room.battle;
     const total = battle.attackerDice.length + battle.defenderDice.length;
     const revealed = battle.revealed || 0;
-    const canReveal = battle.attackerId === getLocalPlayerId() && revealed < total;
+    const isAttacker = battle.attackerId === getLocalPlayerId();
+    const canReveal = isAttacker && revealed < total && !isRolling;
+    const canApply = isAttacker && revealed >= total && !isRolling;
     const modal = existing || document.createElement("div");
     modal.className = "battle-modal";
     modal.innerHTML = `
       <div class="battle-card">
         <p class="eyebrow">Batalla</p>
         <h2>${countryName(battle.fromId)} vs ${countryName(battle.toId)}</h2>
+        <p class="battle-note">${isAttacker ? "Revela los numeros de a uno." : "El atacante esta revelando los numeros."}</p>
         <div class="slot-columns">
-          ${diceColumn("Atacante", battle.attackerDice, 0, revealed, isRolling && canReveal)}
-          ${diceColumn("Defensor", battle.defenderDice, battle.attackerDice.length, revealed, isRolling && canReveal)}
+          ${diceColumn("Atacante", battle.attackerDice, 0, revealed, isRolling)}
+          ${diceColumn("Defensor", battle.defenderDice, battle.attackerDice.length, revealed, isRolling)}
         </div>
-        <button class="battle-reveal" type="button" ${canReveal && !isRolling ? "" : "disabled"}>${isRolling ? "Girando..." : revealed >= total ? "Resolviendo..." : "Revelar numero"}</button>
+        <button class="battle-action" type="button" ${canReveal || canApply ? "" : "disabled"}>${isRolling ? "Girando..." : canApply ? "Aplicar resultado" : "Revelar numero"}</button>
       </div>
     `;
-    modal.querySelector(".battle-reveal")?.addEventListener("click", revealNext);
+    const action = modal.querySelector(".battle-action");
+    action?.addEventListener("click", canApply ? applyResult : revealNext);
     if (!existing) document.body.appendChild(modal);
   }
 
   function diceColumn(title, dice, offset, revealed, isRolling) {
+    const currentIndex = revealed;
     const slots = dice.map((value, index) => {
-      const visible = revealed > offset + index;
-      return `<span class="slot-number ${isRolling && !visible && revealed === offset + index ? "rolling" : ""}">${visible ? value : "?"}</span>`;
+      const absoluteIndex = offset + index;
+      const visible = revealed > absoluteIndex;
+      const rollingClass = isRolling && !visible && currentIndex === absoluteIndex ? "rolling" : "";
+      return `<span class="slot-number ${rollingClass}">${visible ? value : "?"}</span>`;
     }).join("");
     return `<div class="slot-side"><strong>${title}</strong><div class="slot-row">${slots}</div></div>`;
   }
@@ -173,27 +199,26 @@
     return (params.get("room") || sessionStorage.getItem(CURRENT_ROOM_KEY) || "").trim().toUpperCase();
   }
 
-  function getLocalPlayerId() {
-    return sessionStorage.getItem(LOCAL_PLAYER_KEY);
-  }
-
+  function getLocalPlayerId() { return sessionStorage.getItem(LOCAL_PLAYER_KEY); }
   function rollDice(amount) { return Array.from({ length: amount }, () => 1 + Math.floor(Math.random() * 6)).sort((a, b) => b - a); }
   function countryName(id) { return id.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); }
   function slug(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
   function clampInt(value, min, max) { return Math.min(Math.max(Math.trunc(value), min), max); }
+  function toast(message) { const node = document.createElement("div"); node.className = "toast"; node.textContent = message; document.body.appendChild(node); window.setTimeout(() => node.remove(), 2200); }
 
   function injectStyles() {
     const style = document.createElement("style");
     style.textContent = `
       .battle-modal { align-items: center; background: rgba(5, 8, 12, 0.58); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 3000; }
-      .battle-card { background: rgba(17, 22, 28, 0.96); border: 1px solid var(--accent); border-radius: 8px; box-shadow: var(--shadow); display: grid; gap: 16px; max-width: 560px; padding: 18px; text-align: center; width: min(100%, 560px); }
+      .battle-card { background: rgba(17, 22, 28, 0.96); border: 1px solid var(--accent); border-radius: 8px; box-shadow: var(--shadow); display: grid; gap: 14px; max-width: 560px; padding: 18px; text-align: center; width: min(100%, 560px); }
       .battle-card h2 { font-size: 24px; }
+      .battle-note { color: var(--muted); }
       .slot-columns { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
       .slot-side { background: #0d1116; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 10px; padding: 12px; }
       .slot-row { display: flex; gap: 8px; justify-content: center; min-height: 58px; }
       .slot-number { align-items: center; background: linear-gradient(180deg, #f8fafc, #b6c2d2); border: 2px solid #0d1116; border-radius: 8px; color: #111827; display: inline-flex; font-size: 30px; font-weight: 950; height: 54px; justify-content: center; min-width: 48px; }
       .slot-number.rolling { animation: slotRoll 160ms linear infinite; }
-      .battle-reveal { justify-self: center; min-width: 180px; }
+      .battle-action { justify-self: center; min-width: 190px; }
       @keyframes slotRoll { 0% { transform: translateY(-4px); filter: brightness(1.35); } 50% { transform: translateY(4px); filter: brightness(0.9); } 100% { transform: translateY(-4px); filter: brightness(1.35); } }
       @media (max-width: 620px) { .slot-columns { grid-template-columns: 1fr; } .battle-card { padding: 14px; } }
     `;
