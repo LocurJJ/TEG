@@ -19,6 +19,7 @@
 
   function boot() {
     document.body.classList.add("calibrating");
+    document.addEventListener("click", blockCountryGameEvents, true);
     createPanel();
     bindWhenReady();
   }
@@ -36,9 +37,9 @@
 
   function bindCountries(board) {
     board.querySelectorAll(".map-country").forEach((country) => {
+      applySavedPosition(country);
       if (country.dataset.calibrationReady) return;
       country.dataset.calibrationReady = "1";
-      applySavedPosition(country);
       country.addEventListener("pointerdown", startDrag);
       country.addEventListener("click", blockDraggedClick, true);
     });
@@ -67,8 +68,7 @@
     const rect = board.getBoundingClientRect();
     const x = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
     const y = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
-    active.style.left = `${x}%`;
-    active.style.top = `${y}%`;
+    setCountryPosition(active, x, y);
     movedPositions[getCountryKey(active)] = { left: x, top: y };
   }
 
@@ -89,11 +89,21 @@
     dragged = false;
   }
 
+  function blockCountryGameEvents(event) {
+    if (!event.target.closest(".map-country")) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   function applySavedPosition(country) {
     const saved = movedPositions[getCountryKey(country)];
     if (!saved) return;
-    country.style.left = `${saved.left}%`;
-    country.style.top = `${saved.top}%`;
+    setCountryPosition(country, saved.left, saved.top);
+  }
+
+  function setCountryPosition(country, left, top) {
+    country.style.setProperty("left", `${left}%`, "important");
+    country.style.setProperty("top", `${top}%`, "important");
   }
 
   function createPanel() {
