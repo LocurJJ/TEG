@@ -19,8 +19,8 @@
   const countryData = continents.flatMap((continent) => continent.countries.map((name) => ({ id: slug(name), name, continentId: continent.id })));
   const mapPositions = {
     "alaska": [13, 10], "isla-victoria": [27, 12], "groenlandia": [42, 8], "labrador": [39, 28], "canada": [13, 18], "oregon": [14, 28], "washington": [27, 26], "california": [16, 41], "las-vegas": [28, 43], "nueva-chicago": [34, 34], "new-york": [34, 18], "texas": [16, 52],
-    "mexico": [21, 78], "honduras": [28, 57], "el-salvador": [31, 63], "nicaragua": [28, 68], "cuba": [37, 50], "jamaica": [40, 57],
-    "colombia": [23, 88], "venezuela": [49, 86], "brasil": [55, 96], "bolivia": [48, 101], "paraguay": [52, 107], "uruguay": [56, 116], "argentina": [49, 119], "chile": [43, 116],
+    "mexico": [23, 57], "honduras": [28, 57], "el-salvador": [31, 63], "nicaragua": [28, 68], "cuba": [37, 50], "jamaica": [40, 57],
+    "colombia": [27, 78], "venezuela": [49, 86], "brasil": [55, 96], "bolivia": [48, 101], "paraguay": [52, 107], "uruguay": [56, 116], "argentina": [49, 119], "chile": [43, 116],
     "islandia": [47, 24], "irlanda": [48, 38], "gran-bretana": [53, 37], "portugal": [52, 52], "espana": [56, 52], "francia": [59, 45], "italia": [63, 52], "alemania": [63, 40], "noruega": [61, 28], "finlandia": [68, 29], "polonia": [68, 41], "bielorusia": [72, 39], "ucrania": [73, 48], "croacia": [66, 49], "serbia": [69, 53], "albania": [68, 59],
     "sahara": [59, 72], "mauritania": [54, 78], "ghana": [58, 88], "nigeria": [64, 86], "egipto": [70, 73], "kongo": [67, 96], "sudafrica": [66, 117], "madagascar": [74, 111],
     "turquia": [76, 61], "israel": [76, 72], "arabia": [80, 80], "irak": [82, 66], "iran": [87, 65], "india": [93, 84], "rusia": [85, 36], "chechenia": [87, 48], "kazakhstan": [94, 43], "siberia": [103, 35], "china": [103, 64], "vietnam": [108, 78], "filipinas": [116, 84], "corea": [114, 55], "japon": [121, 56], "kamtchatka": [118, 36],
