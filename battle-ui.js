@@ -7,7 +7,6 @@
   let backend = null;
   let unsubscribe = null;
   let rolling = false;
-  const localPlayerId = sessionStorage.getItem(LOCAL_PLAYER_KEY);
 
   injectStyles();
   window.addEventListener("load", boot);
@@ -27,40 +26,46 @@
     });
   }
 
-  async function interceptAttack(event) {
+  function interceptAttack(event) {
     const attackButton = event.target.closest(".attack-option, .map-country.attack-country");
     if (!attackButton || rolling) return;
+    const code = getRoomCode();
+    if (!code) return;
+    if (!room) subscribe(code);
     const selected = document.querySelector(".map-country.selected-country");
     if (!selected) return;
+
+    const fromId = slug(selected.querySelector(".country-name")?.textContent || "");
+    const toId = attackButton.dataset.target || slug(attackButton.querySelector(".country-name")?.textContent || "");
+    const latest = room;
+    if (!latest || latest.battle) return;
+    const from = latest.countries?.[fromId];
+    const to = latest.countries?.[toId];
+    const playerId = getLocalPlayerId();
+    if (!from || !to || from.ownerId !== playerId || to.ownerId === playerId || from.armies <= 1) return;
+
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
 
-    const fromId = slug(selected.querySelector(".country-name")?.textContent || "");
-    const toId = attackButton.dataset.target || slug(attackButton.querySelector(".country-name")?.textContent || "");
-    const latest = await backend.loadRoom(getRoomCode());
-    if (!latest || latest.battle) return;
-    const from = latest.countries?.[fromId];
-    const to = latest.countries?.[toId];
-    if (!from || !to || from.ownerId !== localPlayerId || to.ownerId === localPlayerId || from.armies <= 1) return;
-
     const attackerDiceCount = Math.min(3, from.armies - 1);
     const defenderDiceCount = Math.min(3, to.armies);
-    latest.battle = {
+    const nextRoom = JSON.parse(JSON.stringify(latest));
+    nextRoom.battle = {
       fromId,
       toId,
-      attackerId: localPlayerId,
+      attackerId: playerId,
       defenderId: to.ownerId,
       attackerDice: rollDice(attackerDiceCount),
       defenderDice: rollDice(defenderDiceCount),
       revealed: 0,
       createdAt: Date.now()
     };
-    await backend.saveRoom(latest);
+    backend.saveRoom(nextRoom);
   }
 
   async function revealNext() {
-    if (!room?.battle || rolling || room.battle.attackerId !== localPlayerId) return;
+    if (!room?.battle || rolling || room.battle.attackerId !== getLocalPlayerId()) return;
     rolling = true;
     renderBattle(true);
     window.setTimeout(async () => {
@@ -95,7 +100,7 @@
     if (to.armies <= 0) {
       const maxMove = Math.max(1, from.armies - 1);
       let move = Math.min(maxMove, battle.attackerDice.length);
-      if (battle.attackerId === localPlayerId) {
+      if (battle.attackerId === getLocalPlayerId()) {
         const requested = Number(window.prompt(`Conquistaste ${countryName(battle.toId)}. Cuantas tropas queres mover? 1 a ${maxMove}`, String(move)));
         move = clampInt(Number.isFinite(requested) ? requested : move, 1, maxMove);
       }
@@ -118,7 +123,7 @@
     const battle = room.battle;
     const total = battle.attackerDice.length + battle.defenderDice.length;
     const revealed = battle.revealed || 0;
-    const canReveal = battle.attackerId === localPlayerId && revealed < total;
+    const canReveal = battle.attackerId === getLocalPlayerId() && revealed < total;
     const modal = existing || document.createElement("div");
     modal.className = "battle-modal";
     modal.innerHTML = `
@@ -166,6 +171,10 @@
   function getRoomCode() {
     const params = new URLSearchParams(window.location.search);
     return (params.get("room") || sessionStorage.getItem(CURRENT_ROOM_KEY) || "").trim().toUpperCase();
+  }
+
+  function getLocalPlayerId() {
+    return sessionStorage.getItem(LOCAL_PLAYER_KEY);
   }
 
   function rollDice(amount) { return Array.from({ length: amount }, () => 1 + Math.floor(Math.random() * 6)).sort((a, b) => b - a); }
