@@ -77,7 +77,7 @@
 
   const mapPositions = {
     // Norte America
-    "alaska": [10, 23], "isla-victoria": [18, 28], "groenlandia": [31, 18], "labrador": [29, 36],
+    "alaska": [13, 26], "isla-victoria": [18, 28], "groenlandia": [31, 18], "labrador": [29, 36],
     "canada": [23, 37],
     "oregon": [14, 44], "washington": [20, 48], "california": [13, 56], "las-vegas": [19, 58],
     "nueva-chicago": [25, 55], "new-york": [31, 53], "texas": [23, 66],
