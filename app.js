@@ -77,7 +77,7 @@
 
   const mapPositions = {
     // Norte America
-    "alaska": [13, 26], "isla-victoria": [18, 28], "groenlandia": [31, 18], "labrador": [29, 36],
+    "alaska": [10, 23], "isla-victoria": [18, 28], "groenlandia": [31, 18], "labrador": [29, 36],
     "canada": [23, 37],
     "oregon": [14, 44], "washington": [20, 48], "california": [13, 56], "las-vegas": [19, 58],
     "nueva-chicago": [25, 55], "new-york": [31, 53], "texas": [23, 66],
@@ -218,6 +218,9 @@
   let localPlayerId = sessionStorage.getItem(LOCAL_PLAYER_KEY) || makeId("P");
   sessionStorage.setItem(LOCAL_PLAYER_KEY, localPlayerId);
   detectBoardImage();
+  if (new URLSearchParams(window.location.search).has("preview")) {
+    state = previewRoom();
+  }
 
   window.addEventListener("storage", (event) => {
     if (backend.mode !== "local" || !state || event.key !== storageKey(state.code) || !event.newValue) return;
@@ -604,6 +607,28 @@
       createdAt: Date.now(),
       players: [{ ...host, colorId: null }],
       countries: {},
+      placement: null
+    };
+  }
+
+  function previewRoom() {
+    const previewPlayers = [
+      { id: localPlayerId, name: "Prueba 1", isHost: true, colorId: "rojo" },
+      { id: "preview-2", name: "Prueba 2", isHost: false, colorId: "azul" }
+    ];
+    const countries = {};
+    countryData.forEach((country, index) => {
+      countries[country.id] = {
+        ownerId: previewPlayers[index % previewPlayers.length].id,
+        armies: 1
+      };
+    });
+    return {
+      code: "MAPA",
+      phase: "ready",
+      createdAt: Date.now(),
+      players: previewPlayers,
+      countries,
       placement: null
     };
   }
