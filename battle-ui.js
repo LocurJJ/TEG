@@ -49,7 +49,8 @@
       return;
     }
     if (latest.battle) {
-      toast("Ya hay una batalla en curso.");
+      room = latest;
+      renderBattle();
       return;
     }
     const from = latest.countries?.[fromId];
@@ -75,6 +76,8 @@
       createdAt: Date.now()
     };
     await backend.saveRoom(latest);
+    room = latest;
+    renderBattle();
   }
 
   async function revealNext() {
@@ -92,6 +95,7 @@
       }
       latest.battle.revealed = Math.min(total, (latest.battle.revealed || 0) + 1);
       await backend.saveRoom(latest);
+      room = latest;
       rolling = false;
       renderBattle();
     }, REVEAL_DELAY);
@@ -103,6 +107,8 @@
     if (!latest?.battle) return;
     resolveBattle(latest);
     await backend.saveRoom(latest);
+    room = latest;
+    renderBattle();
   }
 
   function resolveBattle(latest) {
